@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Second-hand price dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+body{font:15px system-ui,sans-serif;margin:0;background:#0b1e4a;color:#fff}
+main{max-width:1000px;margin:0 auto;padding:24px 16px}
+form{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}
+input,button{padding:10px 12px;border-radius:8px;border:0;font:inherit}
+input{flex:1;min-width:140px}button{background:#2ee59d;color:#0b1e4a;font-weight:700;cursor:pointer}
+.card{background:#12285c;border-radius:12px;padding:16px;margin-bottom:16px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:12px}
+.item{background:#0b1e4a;border-radius:10px;overflow:hidden}.item img{width:100%;height:130px;object-fit:cover;background:#1d3a80}
+.item div{padding:8px 10px}a{color:#2ee59d}small{color:#9bb4e8}
+</style></head><body><main>
+<h1>Second-hand price dashboard</h1>
+<small>OLX · Wallapop · Leboncoin · Custojusto · Facebook Marketplace · Support: Telegram @pintoflow</small>
+<form id="f"><input id="q" placeholder="what are you looking for? e.g. iphone 13" required>
+<input id="max" type="number" placeholder="max price" style="max-width:130px"><button>Compare</button></form>
+<div class="card"><canvas id="chart" height="110"></canvas><div id="note"></div></div>
+<div class="grid" id="grid"></div>
+<script>
+let chart;
+const $=id=>document.getElementById(id);
+$('f').onsubmit=async e=>{e.preventDefault();
+  const p=new URLSearchParams({query:$('q').value,limit:20});if($('max').value)p.set('maxPrice',$('max').value);
+  $('note').textContent='Loading...';
+  const [c,ch]=await Promise.all([fetch('/compare?'+p).then(r=>r.json()),fetch('/cheapest?'+p).then(r=>r.json())]);
+  if(c.error){$('note').textContent=c.message;return}
+  const src=Object.keys(c.data.bySource);
+  const ds=['min','avg','max'].map((k,i)=>({label:k,data:src.map(s=>Math.round(c.data.bySource[s][k]||0)),backgroundColor:['#2ee59d','#4aa3ff','#ff5c7a'][i]}));
+  chart&&chart.destroy();
+  chart=new Chart($('chart'),{type:'bar',data:{labels:src,datasets:ds},options:{plugins:{legend:{labels:{color:'#fff'}}},scales:{x:{ticks:{color:'#fff'}},y:{ticks:{color:'#fff'}}}}});
+  $('note').innerHTML='<small>'+c.data.overall.count+' listings, overall min '+c.data.overall.min+', avg '+Math.round(c.data.overall.avg)+(c.data.errors&&c.data.errors.length?' (some sources failed: partial result)':'')+'</small>';
+  $('grid').innerHTML=(ch.data.listings||[]).slice(0,24).map(l=>'<div class="item"><img loading="lazy" src="'+((l.images||[])[0]||'')+'"><div><b>'+(l.price??'?')+' '+(l.currency||'')+'</b> <small>'+l.source+'</small><br><a target="_blank" rel="noopener" href="'+l.url+'">'+l.title.slice(0,60).replace(/</g,'&lt;')+'</a></div></div>').join('');
+};
+</script></main></body></html>
